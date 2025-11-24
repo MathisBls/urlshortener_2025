@@ -72,7 +72,7 @@ urlshortener/
 ### Compilation
 
 ```bash
-git clone [https://github.com/axellelanca/urlshortener.git](https://github.com/MathisBls/urlshortener_2025.git)
+git clone https://github.com/MathisBls/urlshortener_2025
 cd urlshortener
 go mod tidy
 go build -o url-shortener
