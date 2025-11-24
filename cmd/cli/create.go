@@ -10,7 +10,7 @@ import (
 	"github.com/axellelanca/urlshortener/internal/repository"
 	"github.com/axellelanca/urlshortener/internal/services"
 	"github.com/spf13/cobra"
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

@@ -11,7 +11,7 @@ import (
 	"github.com/axellelanca/urlshortener/internal/services"
 	"github.com/spf13/cobra"
 
-	"gorm.io/driver/sqlite" // Driver SQLite pour GORM
+	"github.com/glebarez/sqlite" // Driver SQLite pour GORM
 	"gorm.io/gorm"
 )
 
