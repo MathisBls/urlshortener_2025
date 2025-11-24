@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -17,21 +18,15 @@ import (
 var ClickEventsChannel chan models.ClickEvent
 
 // SetupRoutes configure toutes les routes de l'API Gin et injecte les dépendances nécessaires
-func SetupRoutes(router *gin.Engine, linkService *services.LinkService) {
-	// Le channel est initialisé ici.
-	if ClickEventsChannel == nil {
-		// TODO Créer le channel ici (make), il doit être bufférisé
-		// La taille du buffer doit être configurable via la donnée récupérer avec Viper
-		ClickEventsChannel = make(chan models.ClickEvent, 1000) // Taille par défaut, à configurer via Viper
-	}
-
+// Le channel ClickEventsChannel doit être initialisé avant l'appel à SetupRoutes (dans server.go)
+func SetupRoutes(router *gin.Engine, linkService *services.LinkService, baseURL string) {
 	// Route de Health Check , /health
 	router.GET("/health", HealthCheckHandler)
 
 	// Routes de l'API
 	// Doivent être au format /api/v1/
 	apiV1 := router.Group("/api/v1")
-	apiV1.POST("/links", CreateShortLinkHandler(linkService))
+	apiV1.POST("/links", CreateShortLinkHandler(linkService, baseURL))
 	apiV1.GET("/links/:shortCode/stats", GetLinkStatsHandler(linkService))
 
 	// Route de Redirection (au niveau racine pour les short codes)
@@ -49,17 +44,17 @@ type CreateLinkRequest struct {
 }
 
 // CreateShortLinkHandler gère la création d'une URL courte.
-func CreateShortLinkHandler(linkService *services.LinkService) gin.HandlerFunc {
+func CreateShortLinkHandler(linkService *services.LinkService, baseURL string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateLinkRequest
-		// TODO : Tente de lier le JSON de la requête à la structure CreateLinkRequest.
+		// Tente de lier le JSON de la requête à la structure CreateLinkRequest.
 		// Gin gère la validation 'binding'.
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		// TODO: Appeler le LinkService (CreateLink) pour créer le nouveau lien.
+		// Appeler le LinkService (CreateLink) pour créer le nouveau lien.
 		link, err := linkService.CreateLink(req.LongURL)
 		if err != nil {
 			log.Printf("Error creating link: %v", err)
@@ -68,10 +63,11 @@ func CreateShortLinkHandler(linkService *services.LinkService) gin.HandlerFunc {
 		}
 
 		// Retourne le code court et l'URL longue dans la réponse JSON.
+		fullShortURL := fmt.Sprintf("%s/%s", baseURL, link.ShortCode)
 		c.JSON(http.StatusCreated, gin.H{
 			"short_code":     link.ShortCode,
 			"long_url":       link.LongURL,
-			"full_short_url": "http://localhost:8080/" + link.ShortCode, // TODO: Utiliser cfg.Server.BaseURL ici
+			"full_short_url": fullShortURL,
 		})
 	}
 }

@@ -69,15 +69,15 @@ puis lance le serveur HTTP.`,
 		monitorInterval := time.Duration(cfg.Monitor.IntervalMinutes) * time.Minute
 		urlMonitor := monitor.NewUrlMonitor(linkRepo, monitorInterval) // Le moniteur a besoin du linkRepo et de l'interval
 
-		// TODO Lancez le moniteur dans sa propre goroutine.
+		// Lancer le moniteur dans sa propre goroutine.
 		go urlMonitor.Start()
 
 		log.Printf("Moniteur d'URLs démarré avec un intervalle de %v.", monitorInterval)
 
-		// TODO : Configurer le routeur Gin et les handlers API.
+		// Configurer le routeur Gin et les handlers API.
 		// Passez les services nécessaires aux fonctions de configuration des routes.
 		router := gin.Default()
-		api.SetupRoutes(router, linkService)
+		api.SetupRoutes(router, linkService, cfg.Server.BaseURL)
 
 		// Pas toucher au log
 		log.Println("Routes API configurées.")
@@ -89,7 +89,7 @@ puis lance le serveur HTTP.`,
 			Handler: router,
 		}
 
-		// TODO : Démarrer le serveur Gin dans une goroutine anonyme pour ne pas bloquer.
+		// Démarrer le serveur Gin dans une goroutine anonyme pour ne pas bloquer.
 		go func() {
 			log.Printf("Serveur HTTP démarré sur %s", serverAddr)
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
