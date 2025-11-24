@@ -7,38 +7,43 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO ClickRepository est une interface qui définit les méthodes d'accès aux données
+// ClickRepository est une interface qui définit les méthodes d'accès aux données
 // pour les opérations sur les clics. Cette abstraction permet à la couche service
 // de rester indépendante de l'implémentation spécifique de la base de données.
-// Implémenter l'interface avec les méthodes nécessaires.
 type ClickRepository interface {
-	// Utilisé par LinkService pour les stats
+	// CreateClick enregistre un nouvel événement de clic.
+	CreateClick(click *models.Click) error
+	// CountClicksByLinkID retourne le nombre de clics pour un lien donné.
+	CountClicksByLinkID(linkID uint) (int, error)
 }
 
-// GormClickRepository est l'implémentation de l'interface ClickRepository utilisant GORM.
+// GormClickRepository est l'implémentation de ClickRepository utilisant GORM.
 type GormClickRepository struct {
-	db *gorm.DB // Référence à l'instance de la base de données GORM
+	db *gorm.DB
 }
 
-// NewClickRepository crée et retourne une nouvelle instance de GormClickRepository.
-// C'est la méthode recommandée pour obtenir un dépôt, garantissant que la connexion à la base de données est injectée.
-func NewClickRepository(db *gorm.DB) *GormClickRepository {
+// NewClickRepository crée une nouvelle instance de GormClickRepository.
+func NewClickRepository(db *gorm.DB) ClickRepository {
+	if db == nil {
+		panic("nil *gorm.DB passed to NewClickRepository")
+	}
 	return &GormClickRepository{db: db}
 }
 
-// CreateClick insère un nouvel enregistrement de clic dans la base de données.
-// Elle reçoit un pointeur vers une structure models.Click et la persiste en utilisant GORM.
+// CreateClick utilise GORM pour créer une nouvelle entrée dans la table "clicks".
 func (r *GormClickRepository) CreateClick(click *models.Click) error {
-	// TODO : Utiliser GORM pour créer une nouvelle entrée dans la table "clicks"
-
+	if err := r.db.Create(click).Error; err != nil {
+		return fmt.Errorf("failed to create click: %w", err)
+	}
+	return nil
 }
 
 // CountClicksByLinkID compte le nombre total de clics pour un ID de lien donné.
 // Cette méthode est utilisée pour fournir des statistiques pour une URL courte.
 func (r *GormClickRepository) CountClicksByLinkID(linkID uint) (int, error) {
 	var count int64 // GORM retourne un int64 pour les décomptes
-	// TODO : Utiliser GORM pour compter les enregistrements dans la table 'clicks'
-	// où 'LinkID' correspond à l'ID de lien fourni.
-
-	return int(count), nil // Convert the int64 count to an int
+	if err := r.db.Model(&models.Click{}).Where("link_id = ?", linkID).Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count clicks for link %d: %w", linkID, err)
+	}
+	return int(count), nil // Conversion de int64 vers int
 }
