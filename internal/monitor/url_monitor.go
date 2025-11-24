@@ -18,11 +18,14 @@ type UrlMonitor struct {
 	mu          sync.Mutex                // Mutex pour protéger l'accès concurrentiel à knownStates
 }
 
-// TODO finir cette fonction
 // NewUrlMonitor crée et retourne une nouvelle instance de UrlMonitor.
 // Attention: retourne un pointeur
 func NewUrlMonitor(linkRepo repository.LinkRepository, interval time.Duration) *UrlMonitor {
-	return
+	return &UrlMonitor{
+		linkRepo:    linkRepo,
+		interval:    interval,
+		knownStates: make(map[uint]bool),
+	}
 }
 
 // Start lance la boucle de surveillance périodique des URLs.
@@ -45,14 +48,16 @@ func (m *UrlMonitor) Start() {
 func (m *UrlMonitor) checkUrls() {
 	log.Println("[MONITOR] Lancement de la vérification de l'état des URLs...")
 
-	// TODO : Récupérer toutes les URLs longues actives depuis le linkRepo (GetAllLinks).
-	// Gérer l'erreur si la récupération échoue.
-	// Si erreur : log.Printf("[MONITOR] ERREUR lors de la récupération des liens pour la surveillance : %v", err)
-	links, err :=
+	// Récupérer toutes les URLs longues actives depuis le linkRepo (GetAllLinks).
+	links, err := m.linkRepo.GetAllLinks()
+	if err != nil {
+		log.Printf("[MONITOR] ERREUR lors de la récupération des liens pour la surveillance : %v", err)
+		return
+	}
 
 	for _, link := range links {
-		// TODO : Pour chaque lien, vérifier son accessibilité (isUrlAccessible).
-		currentState :=
+		// Pour chaque lien, vérifier son accessibilité (isUrlAccessible).
+		currentState := m.isUrlAccessible(link.LongURL)
 
 		// Protéger l'accès à la map 'knownStates' car 'checkUrls' peut être exécuté concurremment
 		m.mu.Lock()
@@ -67,24 +72,30 @@ func (m *UrlMonitor) checkUrls() {
 			continue
 		}
 
-		// TODO : Comparer l'état actuel avec l'état précédent.
-		// Si l'état a changé, générer une fausse notification dans les logs.
-		// log.Printf("[NOTIFICATION] Le lien %s (%s) est passé de %s à %s !"
-
+		// Comparer l'état actuel avec l'état précédent.
+		if currentState != previousState {
+			// Si l'état a changé, générer une notification dans les logs.
+			log.Printf("[NOTIFICATION] Le lien %s (%s) est passé de %s à %s !",
+				link.ShortCode, link.LongURL, formatState(previousState), formatState(currentState))
+		}
 	}
 	log.Println("[MONITOR] Vérification de l'état des URLs terminée.")
 }
 
 // isUrlAccessible effectue une requête HTTP HEAD pour vérifier l'accessibilité d'une URL.
 func (m *UrlMonitor) isUrlAccessible(url string) bool {
-	// TODO Définir un timeout pour éviter de bloquer trop longtemps (5 secondes c'est bien)
+	// Définir un timeout pour éviter de bloquer trop longtemps (5 secondes c'est bien)
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
 
-	// TODO: Effectuer une requête HEAD (plus légère que GET) sur l'URL.
-	// Un code de statut 2xx ou 3xx indique que l'URL est accessible.
-	// Si err : log.Printf("[MONITOR] Erreur d'accès à l'URL '%s': %v", url, err)
-
-	// TODO Assurez-vous de fermer le corps de la réponse pour libérer les ressources
-
+	// Effectuer une requête HEAD (plus légère que GET) sur l'URL.
+	resp, err := client.Head(url)
+	if err != nil {
+		log.Printf("[MONITOR] Erreur d'accès à l'URL '%s': %v", url, err)
+		return false
+	}
+	defer resp.Body.Close()
 
 	// Déterminer l'accessibilité basée sur le code de statut HTTP.
 	return resp.StatusCode >= 200 && resp.StatusCode < 400 // Codes 2xx ou 3xx
